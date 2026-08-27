@@ -1,0 +1,12 @@
+node_modules/
+.env
+cache/
+artifacts/
+coverage/
+coverage.json
+typechain/
+typechain-types/
+*.log
+
+# The report is submitted through Ulwazi, not published here.
+report/
