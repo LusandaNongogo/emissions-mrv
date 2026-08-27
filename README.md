@@ -7,8 +7,7 @@ FINE7079A Blockchain and Cryptocurrencies (2026) - Assignment 1
 
 A minimal, auditable Monitoring, Reporting and Verification (MRV) register for greenhouse
 gas (GHG) emissions, built as a Solidity smart contract and deployed to the Ethereum
-Sepolia public test network. See `report/` (or the submitted report PDF/DOCX) for the full
-problem analysis, architecture design, and critical reflection.
+Sepolia public test network.
 
 ## Contents
 
