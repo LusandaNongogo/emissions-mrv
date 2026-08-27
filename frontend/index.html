@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EmissionsMRV — GHG Emissions MRV dApp</title>
+<script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* Palette modelled after real-world carbon-accounting dApps (Hyperledger-style):
+     neutral dark chrome, a climate-green primary action color, and Material-ish
+     role accents (indigo/amber/blue) instead of a single "AI dashboard" brand color. */
+  :root{
+    --ink-dark:#20242b;                          /* header / dark chrome */
+    --primary:#2e7d32; --primary-fill:#e8f5e9; --primary-dark:#1b5e20;  /* brand green */
+    --indigo:#283593; --indigo-fill:#e8eaf6;     /* regulator role */
+    --amber:#c46210;  --amber-fill:#fdf0e2;      /* reporter role */
+    --blue:#0277bd;   --blue-fill:#e1f5fe;       /* verifier role */
+    --grey:#5f6368;   --grey-fill:#eef1f3;       /* public / neutral */
+    --red:#c62828;    --red-fill:#fdecea;
+    --ink:#20242b; --paper:#ffffff; --border:#dfe3e8; --bg:#f4f6f8;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:"Open Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+  }
+  header{
+    background:var(--ink-dark); color:#fff; padding:16px 24px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;
+    border-bottom:3px solid var(--primary);
+  }
+  header h1{ font-size:17.5px; margin:0; font-weight:700; letter-spacing:-.01em; }
+  header p{ margin:2px 0 0; font-size:12px; color:#aeb4bd; }
+  .wallet-box{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .pill{
+    padding:6px 12px; border-radius:6px; font-size:12.5px; font-weight:600;
+    background:rgba(255,255,255,0.1); color:#fff; white-space:nowrap;
+  }
+  button{
+    font-family:inherit; cursor:pointer; border:none; border-radius:6px;
+    padding:9px 16px; font-size:13.5px; font-weight:600; transition:opacity .15s, box-shadow .15s;
+    box-shadow:0 1px 2px rgba(0,0,0,.14);
+  }
+  button:hover{ opacity:.9; }
+  button:disabled{ opacity:.45; cursor:not-allowed; box-shadow:none; }
+  .btn-primary{ background:var(--primary); color:#fff; }
+  .btn-amber{ background:var(--amber); color:#fff; }
+  .btn-blue{ background:var(--blue); color:#fff; }
+  .btn-outline{ background:#fff; color:var(--ink-dark); border:1.5px solid #c9ced6; box-shadow:none; }
+  .container{ max-width:1080px; margin:0 auto; padding:20px; }
+  .banner{
+    padding:12px 16px; border-radius:8px; margin-bottom:16px; font-size:13.5px;
+    display:none; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
+    border:1px solid transparent;
+  }
+  .banner.show{ display:flex; }
+  .banner.warn{ background:var(--amber-fill); color:var(--amber); border-color:#eeceac; }
+  .banner.err{ background:var(--red-fill); color:var(--red); border-color:#f0bcbc; }
+  .banner.ok{ background:var(--primary-fill); color:var(--primary-dark); border-color:#bfe3c2; }
+  .config-card{
+    background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(20,24,30,.05);
+  }
+  .config-card label{ font-size:12px; font-weight:700; color:var(--grey); display:block; margin-bottom:5px; }
+  .config-row{ display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; }
+  .config-row > div{ flex:1; min-width:220px; }
+  input[type=text], input[type=number], input[type=datetime-local], textarea, select{
+    width:100%; padding:9px 11px; border:1.5px solid var(--border); border-radius:6px;
+    font-size:13.5px; font-family:inherit; background:#fff; color:var(--ink);
+  }
+  textarea{ resize:vertical; min-height:70px; }
+  input:focus, textarea:focus{ outline:none; border-color:var(--primary); box-shadow:0 0 0 3px var(--primary-fill); }
+
+  .status-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:20px; }
+  .status-card{ background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px 16px; box-shadow:0 1px 2px rgba(20,24,30,.05); }
+  .status-card .label{ font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--grey); margin-bottom:6px; }
+  .status-card .value{ font-size:13.5px; font-weight:600; word-break:break-all; }
+  .badge{ display:inline-block; padding:3px 9px; border-radius:99px; font-size:11px; font-weight:700; margin:2px 4px 0 0; }
+  .badge.yes{ background:var(--primary-fill); color:var(--primary-dark); }
+  .badge.no{ background:var(--grey-fill); color:var(--grey); }
+
+  .tabs{ display:flex; gap:2px; margin-bottom:0; flex-wrap:wrap; border-bottom:1px solid var(--border); }
+  .tab-btn{
+    background:none; color:var(--grey); padding:11px 15px; border-radius:6px 6px 0 0;
+    font-size:13.5px; font-weight:600; border-bottom:3px solid transparent; margin-bottom:-1px;
+    box-shadow:none;
+  }
+  .tab-btn.active{ color:var(--primary-dark); border-bottom-color:var(--primary); background:#fff; }
+  .panel{ display:none; background:#fff; border:1px solid var(--border); border-top:none; border-radius:0 0 10px 10px; padding:22px; margin-bottom:20px; box-shadow:0 1px 2px rgba(20,24,30,.05); }
+  .panel.active{ display:block; }
+  .panel h2{ font-size:15.5px; margin:0 0 4px; color:var(--ink-dark); font-weight:700; }
+  .panel .desc{ font-size:12.5px; color:var(--grey); margin:0 0 16px; }
+  .form-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:14px; }
+  .form-block{ margin-bottom:26px; padding-bottom:22px; border-bottom:1px solid var(--border); }
+  .form-block:last-child{ border-bottom:none; margin-bottom:0; padding-bottom:0; }
+  .form-block h3{ font-size:13.5px; margin:0 0 3px; font-weight:700; }
+  .form-block .role-tag{ font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:99px; margin-left:6px; vertical-align:middle; text-transform:uppercase; letter-spacing:.03em; }
+  .role-tag.regulator{ background:var(--indigo-fill); color:var(--indigo); }
+  .role-tag.reporter{ background:var(--amber-fill); color:var(--amber); }
+  .role-tag.verifier{ background:var(--blue-fill); color:var(--blue); }
+  .role-tag.public{ background:var(--grey-fill); color:var(--grey); }
+  .field-label{ font-size:12px; font-weight:700; color:var(--grey); display:block; margin-bottom:5px; }
+  .hint{ font-size:11.5px; color:#8a93a0; margin-top:4px; }
+  .result-box{
+    background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px 14px;
+    font-size:12.5px; margin-top:10px; white-space:pre-wrap; word-break:break-all; font-family:Consolas,Menlo,monospace;
+    display:none;
+  }
+  .result-box.show{ display:block; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; margin-top:8px; }
+  th,td{ text-align:left; padding:8px 10px; border-bottom:1px solid var(--border); }
+  th{ color:var(--grey); font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+  a{ color:var(--primary-dark); }
+  .log-empty{ font-size:12.5px; color:#8a93a0; padding:16px 0; text-align:center; }
+  .row-inline{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  footer{ text-align:center; font-size:11.5px; color:#8a93a0; padding:24px 20px 40px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>EmissionsMRV — GHG Emissions MRV dApp</h1>
+    <p>FINE7079A Assignment 1 · front-end for the on-chain emissions register</p>
+  </div>
+  <div class="wallet-box">
+    <span class="pill" id="networkPill">Not connected</span>
+    <span class="pill" id="accountPill" style="display:none;"></span>
+    <button class="btn-primary" id="connectBtn">Connect Wallet</button>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="banner warn" id="networkBanner">
+    <span>You're not on Sepolia. This dApp is configured for the Sepolia test network (chain ID 11155111).</span>
+    <button class="btn-amber" id="switchNetworkBtn">Switch to Sepolia</button>
+  </div>
+  <div class="banner err" id="errorBanner"><span id="errorBannerText"></span></div>
+  <div class="banner ok" id="okBanner"><span id="okBannerText"></span></div>
+
+  <div class="config-card">
+    <div class="config-row">
+      <div>
+        <label for="contractAddressInput">Deployed EmissionsMRV contract address (Sepolia)</label>
+        <input type="text" id="contractAddressInput" placeholder="0x..." />
+      </div>
+      <div style="flex:0 0 auto;">
+        <button class="btn-outline" id="loadContractBtn">Load Contract</button>
+      </div>
+    </div>
+    <p class="hint">The deployed contract address is listed in README.md. It isn't saved anywhere by this page — it needs re-entering after a reload.</p>
+  </div>
+
+  <div class="status-grid">
+    <div class="status-card">
+      <div class="label">Regulator (admin)</div>
+      <div class="value" id="regulatorValue">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Facilities registered</div>
+      <div class="value" id="facilityCountValue">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Records submitted</div>
+      <div class="value" id="recordCountValue">—</div>
+    </div>
+    <div class="status-card">
+      <div class="label">Your roles</div>
+      <div class="value" id="rolesValue"><span class="badge no">connect wallet</span></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="admin">Facilities &amp; Roles</button>
+    <button class="tab-btn" data-tab="submit">Submit Record</button>
+    <button class="tab-btn" data-tab="verify">Verify</button>
+    <button class="tab-btn" data-tab="lookup">Lookup</button>
+    <button class="tab-btn" data-tab="hash">Hash Tool</button>
+    <button class="tab-btn" data-tab="log">Activity Log</button>
+  </div>
+
+  <!-- ADMIN / ROLES TAB -->
+  <div class="panel active" id="panel-admin">
+    <h2>Facilities &amp; Role Management</h2>
+    <p class="desc">These actions require the <strong>regulator</strong> account (or, for reporter authorisation, the facility's own operator account). Calling from any other account will revert — that's the access control working as designed.</p>
+
+    <div class="form-block">
+      <h3>Register a facility <span class="role-tag regulator">regulator only</span></h3>
+      <div class="form-grid">
+        <div><label class="field-label">Facility name</label><input type="text" id="regFacName" placeholder="Plant A — Johannesburg" /></div>
+        <div><label class="field-label">Location</label><input type="text" id="regFacLocation" placeholder="e.g. Ekurhuleni, Gauteng" /></div>
+        <div><label class="field-label">Operator wallet address</label><input type="text" id="regFacOperator" placeholder="0x..." /></div>
+      </div>
+      <button class="btn-primary" id="registerFacilityBtn">Register Facility</button>
+      <div class="result-box" id="registerFacilityResult"></div>
+    </div>
+
+    <div class="form-block">
+      <h3>Appoint / revoke a verifier <span class="role-tag regulator">regulator only</span></h3>
+      <div class="form-grid">
+        <div><label class="field-label">Verifier wallet address</label><input type="text" id="verifierAddr" placeholder="0x..." /></div>
+      </div>
+      <div class="row-inline">
+        <button class="btn-blue" id="appointVerifierBtn">Appoint Verifier</button>
+        <button class="btn-outline" id="revokeVerifierBtn">Revoke Verifier</button>
+      </div>
+      <div class="result-box" id="verifierResult"></div>
+    </div>
+
+    <div class="form-block">
+      <h3>Authorise / revoke a reporter <span class="role-tag regulator">regulator</span> <span class="role-tag reporter">or facility operator</span></h3>
+      <p class="desc" style="margin-bottom:10px;">Use this to add a sensor wallet or an additional employee who may submit records for a facility (e.g. an IoT gateway address).</p>
+      <div class="form-grid">
+        <div><label class="field-label">Facility ID</label><input type="number" id="reporterFacilityId" min="1" placeholder="1" /></div>
+        <div><label class="field-label">Reporter wallet address</label><input type="text" id="reporterAddr" placeholder="0x..." /></div>
+      </div>
+      <div class="row-inline">
+        <button class="btn-amber" id="authorizeReporterBtn">Authorise Reporter</button>
+        <button class="btn-outline" id="revokeReporterBtn">Revoke Reporter</button>
+      </div>
+      <div class="result-box" id="reporterResult"></div>
+    </div>
+  </div>
+
+  <!-- SUBMIT RECORD TAB -->
+  <div class="panel" id="panel-submit">
+    <h2>Submit an Emission Record <span class="role-tag reporter">authorised reporter only</span></h2>
+    <p class="desc">Only the hash of the emissions report is written on-chain — the full report stays off-chain. Use the Hash Tool tab to compute a hash from text or a file first, or paste one directly below.</p>
+    <div class="form-grid">
+      <div><label class="field-label">Facility ID</label><input type="number" id="submitFacilityId" min="1" placeholder="1" /></div>
+      <div><label class="field-label">Report data hash (bytes32)</label><input type="text" id="submitDataHash" placeholder="0x..." /></div>
+      <div><label class="field-label">Reporting period start</label><input type="datetime-local" id="submitPeriodStart" /></div>
+      <div><label class="field-label">Reporting period end</label><input type="datetime-local" id="submitPeriodEnd" /></div>
+    </div>
+    <button class="btn-primary" id="submitRecordBtn">Submit Emission Record</button>
+    <div class="result-box" id="submitRecordResult"></div>
+  </div>
+
+  <!-- VERIFY TAB -->
+  <div class="panel" id="panel-verify">
+    <h2>Verify an Emission Record <span class="role-tag verifier">appointed verifier only</span></h2>
+    <p class="desc">Verification is additive: it never changes the original submitted data, only attaches an independent confirmation to it.</p>
+    <div class="form-grid">
+      <div><label class="field-label">Record ID</label><input type="number" id="verifyRecordId" min="1" placeholder="1" /></div>
+    </div>
+    <button class="btn-blue" id="verifyRecordBtn">Verify Record</button>
+    <div class="result-box" id="verifyRecordResult"></div>
+  </div>
+
+  <!-- LOOKUP TAB -->
+  <div class="panel" id="panel-lookup">
+    <h2>Public Lookup <span class="role-tag public">anyone — read-only</span></h2>
+    <p class="desc">Regulators, auditors, and the public can read all facility and record data without any special role.</p>
+
+    <div class="form-block">
+      <h3>Look up a facility</h3>
+      <div class="form-grid">
+        <div><label class="field-label">Facility ID</label><input type="number" id="lookupFacilityId" min="1" placeholder="1" /></div>
+      </div>
+      <button class="btn-outline" id="lookupFacilityBtn">Get Facility</button>
+      <div class="result-box" id="lookupFacilityResult"></div>
+    </div>
+
+    <div class="form-block">
+      <h3>Look up an emission record</h3>
+      <div class="form-grid">
+        <div><label class="field-label">Record ID</label><input type="number" id="lookupRecordId" min="1" placeholder="1" /></div>
+      </div>
+      <button class="btn-outline" id="lookupRecordBtn">Get Record</button>
+      <div class="result-box" id="lookupRecordResult"></div>
+    </div>
+
+    <div class="form-block">
+      <h3>All records for a facility</h3>
+      <div class="form-grid">
+        <div><label class="field-label">Facility ID</label><input type="number" id="lookupFacilityRecordsId" min="1" placeholder="1" /></div>
+      </div>
+      <button class="btn-outline" id="lookupFacilityRecordsBtn">Get Record IDs</button>
+      <div class="result-box" id="lookupFacilityRecordsResult"></div>
+    </div>
+  </div>
+
+  <!-- HASH TOOL TAB -->
+  <div class="panel" id="panel-hash">
+    <h2>Report Hash Tool</h2>
+    <p class="desc">Compute the keccak256 hash you'll anchor on-chain for a report. Hash a file the same way an auditor would later re-hash it to confirm nothing changed.</p>
+
+    <div class="form-block">
+      <h3>Hash from pasted text</h3>
+      <textarea id="hashTextInput" placeholder="Paste emissions report text, a CSV summary, or a JSON payload here..."></textarea>
+      <button class="btn-outline" id="hashTextBtn" style="margin-top:10px;">Compute Hash</button>
+      <div class="result-box" id="hashTextResult"></div>
+    </div>
+
+    <div class="form-block">
+      <h3>Hash from a file</h3>
+      <input type="file" id="hashFileInput" />
+      <button class="btn-outline" id="hashFileBtn" style="margin-top:10px;">Compute Hash</button>
+      <div class="result-box" id="hashFileResult"></div>
+    </div>
+  </div>
+
+  <!-- ACTIVITY LOG TAB -->
+  <div class="panel" id="panel-log">
+    <h2>Activity Log</h2>
+    <p class="desc">Transactions sent from this page in the current session.</p>
+    <div id="logEmpty" class="log-empty">No transactions yet.</div>
+    <table id="logTable" style="display:none;">
+      <thead><tr><th>Time</th><th>Action</th><th>Status</th><th>Tx / Details</th></tr></thead>
+      <tbody id="logTableBody"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  EmissionsMRV dApp — front-end only, no backend server. All state lives on the Sepolia blockchain.
+  Built for FINE7079A Assignment 1.
+</footer>
+
+<script>
+const SEPOLIA_CHAIN_ID = 11155111n;
+const SEPOLIA_CHAIN_ID_HEX = "0xaa36a7";
+const ETHERSCAN_TX_BASE = "https://sepolia.etherscan.io/tx/";
+const ETHERSCAN_ADDR_BASE = "https://sepolia.etherscan.io/address/";
+
+const ABI = [
+  { "type": "constructor", "stateMutability": "nonpayable", "inputs": [] },
+
+  { "type": "function", "name": "regulator", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "address" }] },
+  { "type": "function", "name": "facilityCount", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "recordCount", "stateMutability": "view", "inputs": [], "outputs": [{ "type": "uint256" }] },
+  { "type": "function", "name": "isVerifier", "stateMutability": "view", "inputs": [{ "type": "address" }], "outputs": [{ "type": "bool" }] },
+  { "type": "function", "name": "isReporter", "stateMutability": "view", "inputs": [{ "type": "uint256" }, { "type": "address" }], "outputs": [{ "type": "bool" }] },
+
+  { "type": "function", "name": "registerFacility", "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "name", "type": "string" },
+      { "name": "location", "type": "string" },
+      { "name": "operator", "type": "address" }
+    ],
+    "outputs": [{ "name": "facilityId", "type": "uint256" }] },
+
+  { "type": "function", "name": "setVerifier", "stateMutability": "nonpayable",
+    "inputs": [{ "name": "verifier", "type": "address" }, { "name": "approved", "type": "bool" }], "outputs": [] },
+
+  { "type": "function", "name": "setReporter", "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "facilityId", "type": "uint256" },
+      { "name": "reporter", "type": "address" },
+      { "name": "authorised", "type": "bool" }
+    ], "outputs": [] },
+
+  { "type": "function", "name": "submitEmissionRecord", "stateMutability": "nonpayable",
+    "inputs": [
+      { "name": "facilityId", "type": "uint256" },
+      { "name": "dataHash", "type": "bytes32" },
+      { "name": "periodStart", "type": "uint256" },
+      { "name": "periodEnd", "type": "uint256" }
+    ],
+    "outputs": [{ "name": "recordId", "type": "uint256" }] },
+
+  { "type": "function", "name": "verifyEmissionRecord", "stateMutability": "nonpayable",
+    "inputs": [{ "name": "recordId", "type": "uint256" }], "outputs": [] },
+
+  { "type": "function", "name": "getFacility", "stateMutability": "view",
+    "inputs": [{ "name": "facilityId", "type": "uint256" }],
+    "outputs": [{
+      "type": "tuple", "components": [
+        { "name": "name", "type": "string" },
+        { "name": "location", "type": "string" },
+        { "name": "operator", "type": "address" },
+        { "name": "isRegistered", "type": "bool" },
+        { "name": "registeredAt", "type": "uint256" }
+      ]
+    }] },
+
+  { "type": "function", "name": "getEmissionRecord", "stateMutability": "view",
+    "inputs": [{ "name": "recordId", "type": "uint256" }],
+    "outputs": [{
+      "type": "tuple", "components": [
+        { "name": "facilityId", "type": "uint256" },
+        { "name": "submittedBy", "type": "address" },
+        { "name": "dataHash", "type": "bytes32" },
+        { "name": "periodStart", "type": "uint256" },
+        { "name": "periodEnd", "type": "uint256" },
+        { "name": "submittedAt", "type": "uint256" },
+        { "name": "verified", "type": "bool" },
+        { "name": "verifiedBy", "type": "address" },
+        { "name": "verifiedAt", "type": "uint256" }
+      ]
+    }] },
+
+  { "type": "function", "name": "getFacilityRecords", "stateMutability": "view",
+    "inputs": [{ "name": "facilityId", "type": "uint256" }], "outputs": [{ "type": "uint256[]" }] },
+
+  { "type": "event", "name": "FacilityRegistered", "inputs": [
+      { "name": "facilityId", "type": "uint256", "indexed": true },
+      { "name": "name", "type": "string", "indexed": false },
+      { "name": "operator", "type": "address", "indexed": true }
+  ] },
+  { "type": "event", "name": "ReporterUpdated", "inputs": [
+      { "name": "facilityId", "type": "uint256", "indexed": true },
+      { "name": "reporter", "type": "address", "indexed": true },
+      { "name": "authorised", "type": "bool", "indexed": false }
+  ] },
+  { "type": "event", "name": "VerifierUpdated", "inputs": [
+      { "name": "verifier", "type": "address", "indexed": true },
+      { "name": "approved", "type": "bool", "indexed": false }
+  ] },
+  { "type": "event", "name": "EmissionRecordSubmitted", "inputs": [
+      { "name": "recordId", "type": "uint256", "indexed": true },
+      { "name": "facilityId", "type": "uint256", "indexed": true },
+      { "name": "submittedBy", "type": "address", "indexed": true },
+      { "name": "dataHash", "type": "bytes32", "indexed": false }
+  ] },
+  { "type": "event", "name": "EmissionRecordVerified", "inputs": [
+      { "name": "recordId", "type": "uint256", "indexed": true },
+      { "name": "verifiedBy", "type": "address", "indexed": true }
+  ] }
+];
+
+let provider = null;
+let signer = null;
+let contract = null;   // connected to signer, for writes
+let readContract = null; // connected to provider, for reads even before wallet connects
+let account = null;
+let chainId = null;
+
+const $ = (id) => document.getElementById(id);
+
+function showBanner(el, textEl, msg, show = true) {
+  if (!show) { el.classList.remove("show"); return; }
+  textEl.textContent = msg;
+  el.classList.add("show");
+}
+function showError(msg) { showBanner($("errorBanner"), $("errorBannerText"), msg); showBanner($("okBanner"), $("okBannerText"), "", false); }
+function showOk(msg) { showBanner($("okBanner"), $("okBannerText"), msg); showBanner($("errorBanner"), $("errorBannerText"), "", false); }
+function clearBanners() {
+  showBanner($("errorBanner"), $("errorBannerText"), "", false);
+  showBanner($("okBanner"), $("okBannerText"), "", false);
+}
+
+function decodeError(err) {
+  try {
+    // The contract validates with require(...), so a failed call comes back as a
+    // standard Error(string) revert - err.reason holds the message we wrote.
+    if (err?.reason) return err.reason;
+    if (err?.revert?.args?.length) return String(err.revert.args[0]);
+    if (err?.shortMessage) return err.shortMessage;
+    if (err?.info?.error?.message) return err.info.error.message;
+    if (err?.message) return err.message;
+  } catch (_) { /* fall through */ }
+  return "Transaction failed (unknown reason). Check the browser console for details.";
+}
+
+function addLogRow(action, status, detail) {
+  $("logEmpty").style.display = "none";
+  $("logTable").style.display = "table";
+  const tr = document.createElement("tr");
+  const time = new Date().toLocaleTimeString();
+  tr.innerHTML = `<td>${time}</td><td>${action}</td><td>${status}</td><td>${detail}</td>`;
+  $("logTableBody").prepend(tr);
+}
+
+function txLink(hash) {
+  return `<a href="${ETHERSCAN_TX_BASE}${hash}" target="_blank" rel="noopener">${hash.slice(0,10)}…${hash.slice(-6)} ↗</a>`;
+}
+
+async function sendTx(methodName, args, actionLabel, resultBoxEl) {
+  clearBanners();
+  if (!contract) { showError("Load the contract address first."); return; }
+  if (!signer) { showError("Connect your wallet first."); return; }
+  resultBoxEl.classList.remove("show");
+  try {
+    // Simulate first so we get a clean decoded revert reason before spending gas / popping MetaMask.
+    await contract[methodName].staticCall(...args);
+  } catch (err) {
+    const msg = decodeError(err);
+    showError(`${actionLabel} would fail: ${msg}`);
+    addLogRow(actionLabel, "❌ reverted (simulated)", msg);
+    return;
+  }
+  try {
+    const tx = await contract[methodName](...args);
+    resultBoxEl.classList.add("show");
+    resultBoxEl.textContent = `Transaction sent: ${tx.hash}\nWaiting for confirmation...`;
+    addLogRow(actionLabel, "⏳ pending", txLink(tx.hash));
+    const receipt = await tx.wait();
+    resultBoxEl.textContent = `Confirmed in block ${receipt.blockNumber}.\nTx hash: ${tx.hash}`;
+    addLogRow(actionLabel, "✅ confirmed", txLink(tx.hash));
+    showOk(`${actionLabel} confirmed on-chain.`);
+    await refreshStatus();
+    return receipt;
+  } catch (err) {
+    const msg = decodeError(err);
+    showError(`${actionLabel} failed: ${msg}`);
+    addLogRow(actionLabel, "❌ failed", msg);
+  }
+}
+
+function shortAddr(a) { return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    showError("No wallet found. Please install MetaMask (metamask.io) and reload this page.");
+    return;
+  }
+  try {
+    provider = new ethers.BrowserProvider(window.ethereum);
+    const accounts = await provider.send("eth_requestAccounts", []);
+    account = accounts[0];
+    signer = await provider.getSigner();
+    const network = await provider.getNetwork();
+    chainId = network.chainId;
+
+    $("accountPill").style.display = "inline-block";
+    $("accountPill").textContent = shortAddr(account);
+    $("connectBtn").textContent = "Connected";
+    $("connectBtn").disabled = true;
+
+    updateNetworkPill();
+    if (contractAddressValid()) bindContract();
+    await refreshStatus();
+
+    window.ethereum.on("accountsChanged", () => window.location.reload());
+    window.ethereum.on("chainChanged", () => window.location.reload());
+  } catch (err) {
+    showError(decodeError(err));
+  }
+}
+
+function updateNetworkPill() {
+  const pill = $("networkPill");
+  if (chainId === SEPOLIA_CHAIN_ID) {
+    pill.textContent = "Sepolia ✓";
+    pill.style.background = "rgba(46,125,50,0.4)";
+    showBanner($("networkBanner"), null, "", false);
+  } else {
+    pill.textContent = `Chain ID ${chainId}`;
+    pill.style.background = "rgba(198,40,40,0.4)";
+    $("networkBanner").classList.add("show");
+  }
+}
+
+async function switchToSepolia() {
+  try {
+    await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: SEPOLIA_CHAIN_ID_HEX }] });
+  } catch (switchErr) {
+    if (switchErr.code === 4902) {
+      try {
+        await window.ethereum.request({
+          method: "wallet_addEthereumChain",
+          params: [{
+            chainId: SEPOLIA_CHAIN_ID_HEX,
+            chainName: "Sepolia",
+            nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+            rpcUrls: ["https://rpc.sepolia.org"],
+            blockExplorerUrls: ["https://sepolia.etherscan.io"]
+          }]
+        });
+      } catch (addErr) { showError(decodeError(addErr)); }
+    } else {
+      showError(decodeError(switchErr));
+    }
+  }
+}
+
+function contractAddressValid() {
+  const addr = $("contractAddressInput").value.trim();
+  return ethers.isAddress(addr);
+}
+
+function bindContract() {
+  const addr = $("contractAddressInput").value.trim();
+  if (!ethers.isAddress(addr)) { showError("That doesn't look like a valid contract address."); return; }
+  if (signer) contract = new ethers.Contract(addr, ABI, signer);
+  if (provider) readContract = new ethers.Contract(addr, ABI, provider);
+  showOk(`Contract loaded at ${addr}.`);
+  refreshStatus();
+}
+
+async function refreshStatus() {
+  const rc = readContract || contract;
+  if (!rc) return;
+  try {
+    const [reg, fCount, rCount] = await Promise.all([
+      rc.regulator(), rc.facilityCount(), rc.recordCount()
+    ]);
+    $("regulatorValue").innerHTML = `<a href="${ETHERSCAN_ADDR_BASE}${reg}" target="_blank" rel="noopener">${shortAddr(reg)} ↗</a>`;
+    $("facilityCountValue").textContent = fCount.toString();
+    $("recordCountValue").textContent = rCount.toString();
+
+    if (account) {
+      const isReg = account.toLowerCase() === reg.toLowerCase();
+      const isVer = await rc.isVerifier(account);
+      let html = "";
+      html += `<span class="badge ${isReg ? "yes" : "no"}">${isReg ? "✓" : "✗"} Regulator</span>`;
+      html += `<span class="badge ${isVer ? "yes" : "no"}">${isVer ? "✓" : "✗"} Verifier</span>`;
+      html += `<span class="badge no">Reporter status is per-facility — check in the Lookup tab</span>`;
+      $("rolesValue").innerHTML = html;
+    }
+  } catch (err) {
+    showError("Could not read from the contract at that address — double check it's deployed on Sepolia. " + decodeError(err));
+  }
+}
+
+function toUnixSeconds(datetimeLocalValue) {
+  if (!datetimeLocalValue) return 0;
+  return Math.floor(new Date(datetimeLocalValue).getTime() / 1000);
+}
+
+function renderFacility(facilityId, f) {
+  return [
+    `Facility #${facilityId}`,
+    `Name:          ${f.name}`,
+    `Location:      ${f.location}`,
+    `Operator:      ${f.operator}`,
+    `Registered:    ${f.isRegistered}`,
+    `Registered at: ${new Date(Number(f.registeredAt) * 1000).toLocaleString()}`
+  ].join("\n");
+}
+
+function renderRecord(recordId, r) {
+  return [
+    `Record #${recordId}`,
+    `Facility ID:   ${r.facilityId}`,
+    `Submitted by:  ${r.submittedBy}`,
+    `Data hash:     ${r.dataHash}`,
+    `Period start:  ${new Date(Number(r.periodStart) * 1000).toLocaleString()}`,
+    `Period end:    ${new Date(Number(r.periodEnd) * 1000).toLocaleString()}`,
+    `Submitted at:  ${new Date(Number(r.submittedAt) * 1000).toLocaleString()}`,
+    `Verified:      ${r.verified}`,
+    r.verified ? `Verified by:   ${r.verifiedBy}` : null,
+    r.verified ? `Verified at:   ${new Date(Number(r.verifiedAt) * 1000).toLocaleString()}` : null,
+  ].filter(Boolean).join("\n");
+}
+
+// ---------------- wire up UI ----------------
+document.addEventListener("DOMContentLoaded", () => {
+  $("connectBtn").addEventListener("click", connectWallet);
+  $("switchNetworkBtn").addEventListener("click", switchToSepolia);
+  $("loadContractBtn").addEventListener("click", bindContract);
+
+  document.querySelectorAll(".tab-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      btn.classList.add("active");
+      $("panel-" + btn.dataset.tab).classList.add("active");
+    });
+  });
+
+  $("registerFacilityBtn").addEventListener("click", () => {
+    const name = $("regFacName").value.trim();
+    const location = $("regFacLocation").value.trim();
+    const operator = $("regFacOperator").value.trim();
+    if (!name || !location || !ethers.isAddress(operator)) { showError("Fill in name, location, and a valid operator address."); return; }
+    sendTx("registerFacility", [name, location, operator], "Register facility", $("registerFacilityResult"));
+  });
+
+  $("appointVerifierBtn").addEventListener("click", () => {
+    const addr = $("verifierAddr").value.trim();
+    if (!ethers.isAddress(addr)) { showError("Enter a valid address."); return; }
+    sendTx("setVerifier", [addr, true], "Appoint verifier", $("verifierResult"));
+  });
+  $("revokeVerifierBtn").addEventListener("click", () => {
+    const addr = $("verifierAddr").value.trim();
+    if (!ethers.isAddress(addr)) { showError("Enter a valid address."); return; }
+    sendTx("setVerifier", [addr, false], "Revoke verifier", $("verifierResult"));
+  });
+
+  $("authorizeReporterBtn").addEventListener("click", () => {
+    const fid = $("reporterFacilityId").value;
+    const addr = $("reporterAddr").value.trim();
+    if (!fid || !ethers.isAddress(addr)) { showError("Enter a facility ID and a valid reporter address."); return; }
+    sendTx("setReporter", [fid, addr, true], "Authorise reporter", $("reporterResult"));
+  });
+  $("revokeReporterBtn").addEventListener("click", () => {
+    const fid = $("reporterFacilityId").value;
+    const addr = $("reporterAddr").value.trim();
+    if (!fid || !ethers.isAddress(addr)) { showError("Enter a facility ID and a valid reporter address."); return; }
+    sendTx("setReporter", [fid, addr, false], "Revoke reporter", $("reporterResult"));
+  });
+
+  $("submitRecordBtn").addEventListener("click", () => {
+    const fid = $("submitFacilityId").value;
+    const hash = $("submitDataHash").value.trim();
+    const start = toUnixSeconds($("submitPeriodStart").value);
+    const end = toUnixSeconds($("submitPeriodEnd").value);
+    if (!fid || !/^0x[0-9a-fA-F]{64}$/.test(hash)) { showError("Enter a facility ID and a valid 32-byte hash (0x + 64 hex chars). Use the Hash Tool tab to generate one."); return; }
+    if (!start || !end || end <= start) { showError("Enter a valid reporting period (end must be after start)."); return; }
+    sendTx("submitEmissionRecord", [fid, hash, start, end], "Submit emission record", $("submitRecordResult"));
+  });
+
+  $("verifyRecordBtn").addEventListener("click", () => {
+    const rid = $("verifyRecordId").value;
+    if (!rid) { showError("Enter a record ID."); return; }
+    sendTx("verifyEmissionRecord", [rid], "Verify record", $("verifyRecordResult"));
+  });
+
+  $("lookupFacilityBtn").addEventListener("click", async () => {
+    const fid = $("lookupFacilityId").value;
+    const box = $("lookupFacilityResult");
+    if (!fid || !(readContract || contract)) { showError("Enter a facility ID and load the contract first."); return; }
+    try {
+      const f = await (readContract || contract).getFacility(fid);
+      box.textContent = renderFacility(fid, f);
+      box.classList.add("show");
+    } catch (err) { showError(decodeError(err)); }
+  });
+
+  $("lookupRecordBtn").addEventListener("click", async () => {
+    const rid = $("lookupRecordId").value;
+    const box = $("lookupRecordResult");
+    if (!rid || !(readContract || contract)) { showError("Enter a record ID and load the contract first."); return; }
+    try {
+      const r = await (readContract || contract).getEmissionRecord(rid);
+      box.textContent = renderRecord(rid, r);
+      box.classList.add("show");
+    } catch (err) { showError(decodeError(err)); }
+  });
+
+  $("lookupFacilityRecordsBtn").addEventListener("click", async () => {
+    const fid = $("lookupFacilityRecordsId").value;
+    const box = $("lookupFacilityRecordsResult");
+    if (!fid || !(readContract || contract)) { showError("Enter a facility ID and load the contract first."); return; }
+    try {
+      const ids = await (readContract || contract).getFacilityRecords(fid);
+      box.textContent = ids.length ? `Record IDs for facility #${fid}:\n${ids.map(String).join(", ")}` : `Facility #${fid} has no submitted records yet.`;
+      box.classList.add("show");
+    } catch (err) { showError(decodeError(err)); }
+  });
+
+  $("hashTextBtn").addEventListener("click", () => {
+    const text = $("hashTextInput").value;
+    const box = $("hashTextResult");
+    if (!text) { showError("Paste some report text first."); return; }
+    const hash = ethers.keccak256(ethers.toUtf8Bytes(text));
+    box.textContent = hash;
+    box.classList.add("show");
+    $("submitDataHash").value = hash;
+  });
+
+  $("hashFileBtn").addEventListener("click", async () => {
+    const fileInput = $("hashFileInput");
+    const box = $("hashFileResult");
+    if (!fileInput.files.length) { showError("Choose a file first."); return; }
+    const file = fileInput.files[0];
+    const buffer = await file.arrayBuffer();
+    const hash = ethers.keccak256(new Uint8Array(buffer));
+    box.textContent = `${file.name} (${file.size} bytes)\n${hash}`;
+    box.classList.add("show");
+    $("submitDataHash").value = hash;
+  });
+});
+</script>
+</body>
+</html>
