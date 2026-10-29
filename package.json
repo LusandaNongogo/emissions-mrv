@@ -1,7 +1,7 @@
 {
   "name": "wits-ghg-mrv",
   "version": "1.0.0",
-  "description": "Blockchain-based GHG emissions Monitoring, Reporting and Verification (MRV) register - FINE7079A Assignment 1",
+  "description": "Blockchain-based GHG emissions Monitoring, Reporting and Verification (MRV) register",
   "license": "MIT",
   "scripts": {
     "compile": "hardhat compile",
