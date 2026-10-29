@@ -20,6 +20,8 @@ The report itself stays off chain, so commercially sensitive data is never made 
 
 Built during my MCom in Financial Technology at Wits (Blockchain and Cryptocurrencies, 2026).
 
+**Tech stack:** Solidity 0.8.20, Hardhat, Mocha and Chai, ethers.js v6, MetaMask, Remix, Etherscan
+
 ## Contents
 
 ```
