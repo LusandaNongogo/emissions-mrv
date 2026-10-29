@@ -138,8 +138,3 @@ re-hash it and confirm it matches what was submitted on-chain, without the conte
 being exposed on a public ledger. The trade off is that the chain proves a report has not
 changed, not that its numbers were right in the first place, which is why independent
 verifiers are part of the design.
-
-## AI usage
-
-Portions of this repository were drafted with the assistance of an AI tool. The full
-declaration, in line with WITS policy, appears in the accompanying report.
