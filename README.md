@@ -106,7 +106,7 @@ Running it:
    and open `http://localhost:8000`. Opening the file directly via `file://` does not
    work: Chrome gives `file://` pages a `null` origin, which breaks the `postMessage`
    channel MetaMask uses to talk to the page, so the wallet is never detected.
-2. Click **Connect Wallet** and confirm the network pill reads "Sepolia ✓" - the
+2. Click **Connect Wallet** and confirm the network pill reads "Sepolia" - the
    **Switch to Sepolia** button prompts MetaMask to change network if not.
 3. Paste the contract address into the box at the top and click **Load Contract**. The
    status tiles then show the regulator, the facility and record counts, and which
