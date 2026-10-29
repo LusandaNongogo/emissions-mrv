@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>EmissionsMRV — GHG Emissions MRV dApp</title>
+<title>EmissionsMRV: GHG Emissions MRV dApp</title>
 <script src="https://cdn.jsdelivr.net/npm/ethers@6/dist/ethers.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -150,21 +150,21 @@
         <button class="btn-outline" id="loadContractBtn">Load Contract</button>
       </div>
     </div>
-    <p class="hint">The deployed contract address is listed in README.md. It isn't saved anywhere by this page — it needs re-entering after a reload.</p>
+    <p class="hint">The deployed contract address is listed in README.md. It isn't saved anywhere by this page, so it needs re-entering after a reload.</p>
   </div>
 
   <div class="status-grid">
     <div class="status-card">
       <div class="label">Regulator (admin)</div>
-      <div class="value" id="regulatorValue">—</div>
+      <div class="value" id="regulatorValue">-</div>
     </div>
     <div class="status-card">
       <div class="label">Facilities registered</div>
-      <div class="value" id="facilityCountValue">—</div>
+      <div class="value" id="facilityCountValue">-</div>
     </div>
     <div class="status-card">
       <div class="label">Records submitted</div>
-      <div class="value" id="recordCountValue">—</div>
+      <div class="value" id="recordCountValue">-</div>
     </div>
     <div class="status-card">
       <div class="label">Your roles</div>
@@ -184,12 +184,12 @@
   <!-- ADMIN / ROLES TAB -->
   <div class="panel active" id="panel-admin">
     <h2>Facilities &amp; Role Management</h2>
-    <p class="desc">These actions require the <strong>regulator</strong> account (or, for reporter authorisation, the facility's own operator account). Calling from any other account will revert — that's the access control working as designed.</p>
+    <p class="desc">These actions require the <strong>regulator</strong> account (or, for reporter authorisation, the facility's own operator account). Calling from any other account will revert, which is the access control working as designed.</p>
 
     <div class="form-block">
       <h3>Register a facility <span class="role-tag regulator">regulator only</span></h3>
       <div class="form-grid">
-        <div><label class="field-label">Facility name</label><input type="text" id="regFacName" placeholder="Plant A — Johannesburg" /></div>
+        <div><label class="field-label">Facility name</label><input type="text" id="regFacName" placeholder="Plant A, Johannesburg" /></div>
         <div><label class="field-label">Location</label><input type="text" id="regFacLocation" placeholder="e.g. Ekurhuleni, Gauteng" /></div>
         <div><label class="field-label">Operator wallet address</label><input type="text" id="regFacOperator" placeholder="0x..." /></div>
       </div>
@@ -227,7 +227,7 @@
   <!-- SUBMIT RECORD TAB -->
   <div class="panel" id="panel-submit">
     <h2>Submit an Emission Record <span class="role-tag reporter">authorised reporter only</span></h2>
-    <p class="desc">Only the hash of the emissions report is written on-chain — the full report stays off-chain. Use the Hash Tool tab to compute a hash from text or a file first, or paste one directly below.</p>
+    <p class="desc">Only the hash of the emissions report is written on-chain; the full report stays off-chain. Use the Hash Tool tab to compute a hash from text or a file first, or paste one directly below.</p>
     <div class="form-grid">
       <div><label class="field-label">Facility ID</label><input type="number" id="submitFacilityId" min="1" placeholder="1" /></div>
       <div><label class="field-label">Report data hash (bytes32)</label><input type="text" id="submitDataHash" placeholder="0x..." /></div>
@@ -251,7 +251,7 @@
 
   <!-- LOOKUP TAB -->
   <div class="panel" id="panel-lookup">
-    <h2>Public Lookup <span class="role-tag public">anyone — read-only</span></h2>
+    <h2>Public Lookup <span class="role-tag public">anyone, read-only</span></h2>
     <p class="desc">Regulators, auditors, and the public can read all facility and record data without any special role.</p>
 
     <div class="form-block">
@@ -479,7 +479,7 @@ async function sendTx(methodName, args, actionLabel, resultBoxEl) {
   } catch (err) {
     const msg = decodeError(err);
     showError(`${actionLabel} would fail: ${msg}`);
-    addLogRow(actionLabel, "❌ reverted (simulated)", msg);
+    addLogRow(actionLabel, "Reverted (simulated)", msg);
     return;
   }
   try {
@@ -489,18 +489,18 @@ async function sendTx(methodName, args, actionLabel, resultBoxEl) {
     addLogRow(actionLabel, "⏳ pending", txLink(tx.hash));
     const receipt = await tx.wait();
     resultBoxEl.textContent = `Confirmed in block ${receipt.blockNumber}.\nTx hash: ${tx.hash}`;
-    addLogRow(actionLabel, "✅ confirmed", txLink(tx.hash));
+    addLogRow(actionLabel, "Confirmed", txLink(tx.hash));
     showOk(`${actionLabel} confirmed on-chain.`);
     await refreshStatus();
     return receipt;
   } catch (err) {
     const msg = decodeError(err);
     showError(`${actionLabel} failed: ${msg}`);
-    addLogRow(actionLabel, "❌ failed", msg);
+    addLogRow(actionLabel, "Failed", msg);
   }
 }
 
-function shortAddr(a) { return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "—"; }
+function shortAddr(a) { return a ? `${a.slice(0,6)}…${a.slice(-4)}` : "-"; }
 
 async function connectWallet() {
   if (!window.ethereum) {
@@ -534,7 +534,7 @@ async function connectWallet() {
 function updateNetworkPill() {
   const pill = $("networkPill");
   if (chainId === SEPOLIA_CHAIN_ID) {
-    pill.textContent = "Sepolia ✓";
+    pill.textContent = "Sepolia";
     pill.style.background = "rgba(46,125,50,0.4)";
     showBanner($("networkBanner"), null, "", false);
   } else {
@@ -596,13 +596,13 @@ async function refreshStatus() {
       const isReg = account.toLowerCase() === reg.toLowerCase();
       const isVer = await rc.isVerifier(account);
       let html = "";
-      html += `<span class="badge ${isReg ? "yes" : "no"}">${isReg ? "✓" : "✗"} Regulator</span>`;
-      html += `<span class="badge ${isVer ? "yes" : "no"}">${isVer ? "✓" : "✗"} Verifier</span>`;
-      html += `<span class="badge no">Reporter status is per-facility — check in the Lookup tab</span>`;
+      html += `<span class="badge ${isReg ? "yes" : "no"}">Regulator: ${isReg ? "yes" : "no"}</span>`;
+      html += `<span class="badge ${isVer ? "yes" : "no"}">Verifier: ${isVer ? "yes" : "no"}</span>`;
+      html += `<span class="badge no">Reporter status is per facility, check in the Lookup tab</span>`;
       $("rolesValue").innerHTML = html;
     }
   } catch (err) {
-    showError("Could not read from the contract at that address — double check it's deployed on Sepolia. " + decodeError(err));
+    showError("Could not read from the contract at that address. Double check it's deployed on Sepolia. " + decodeError(err));
   }
 }
 
