@@ -1,13 +1,24 @@
-# EmissionsMRV - Blockchain-Based GHG Emissions MRV Register
+# EmissionsMRV: On-Chain GHG Emissions Register
 
-FINE7079A Blockchain and Cryptocurrencies (2026) - Assignment 1
+A tamper evident register for greenhouse gas (GHG) emissions Monitoring, Reporting and
+Verification (MRV), built as a Solidity smart contract and deployed to the Ethereum Sepolia
+test network.
 
-**Student name:** Lusanda Nongogo
-**Student number:** 1370438
+**The problem.** Emissions reports are self reported, hard to audit after the fact and easy
+to quietly revise. Carbon tax, carbon credits and climate linked finance all depend on those
+numbers being trustworthy.
 
-A minimal, auditable Monitoring, Reporting and Verification (MRV) register for greenhouse
-gas (GHG) emissions, built as a Solidity smart contract and deployed to the Ethereum
-Sepolia public test network.
+**The approach.** Facilities submit a hash of each emissions report on chain, independent
+verifiers sign off on records, and anyone can check a report against what was submitted.
+The report itself stays off chain, so commercially sensitive data is never made public.
+
+**Highlights**
+- Role based access control for regulator, facility operator, reporter and verifier
+- 22 Hardhat tests covering permissions, submissions and verification
+- Deployed and source verified on Sepolia, with measured gas costs
+- A no build front end dApp that connects through MetaMask
+
+Built during my MCom in Financial Technology at Wits (Blockchain and Cryptocurrencies, 2026).
 
 ## Contents
 
@@ -124,10 +135,6 @@ company's own document management system). Only the `keccak256` hash of the repo
 written to the smart contract. This still gives regulators and auditors a tamper-evident,
 timestamped, publicly verifiable anchor: anyone holding a copy of the original report can
 re-hash it and confirm it matches what was submitted on-chain, without the contents ever
-being exposed on a public ledger. See the report's Part B and Part D for the full
-justification and its limitations.
-
-## AI usage
-
-Portions of this repository were drafted with the assistance of an AI tool. The full
-declaration, in line with WITS policy, appears in the accompanying report.
+being exposed on a public ledger. The trade off is that the chain proves a report has not
+changed, not that its numbers were right in the first place, which is why independent
+verifiers are part of the design.

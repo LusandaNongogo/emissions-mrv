@@ -9,9 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Palette modelled after real-world carbon-accounting dApps (Hyperledger-style):
-     neutral dark chrome, a climate-green primary action color, and Material-ish
-     role accents (indigo/amber/blue) instead of a single "AI dashboard" brand color. */
+  /* Dark neutral base, green for primary actions, one accent colour per role. */
   :root{
     --ink-dark:#20242b;                          /* header / dark chrome */
     --primary:#2e7d32; --primary-fill:#e8f5e9; --primary-dark:#1b5e20;  /* brand green */
@@ -123,8 +121,8 @@
 
 <header>
   <div>
-    <h1>EmissionsMRV — GHG Emissions MRV dApp</h1>
-    <p>FINE7079A Assignment 1 · front-end for the on-chain emissions register</p>
+    <h1>EmissionsMRV: GHG Emissions MRV dApp</h1>
+    <p>Front-end for the on-chain emissions register</p>
   </div>
   <div class="wallet-box">
     <span class="pill" id="networkPill">Not connected</span>
@@ -318,8 +316,7 @@
 </div>
 
 <footer>
-  EmissionsMRV dApp — front-end only, no backend server. All state lives on the Sepolia blockchain.
-  Built for FINE7079A Assignment 1.
+  EmissionsMRV dApp. Front-end only, no backend server. All state lives on the Sepolia blockchain.
 </footer>
 
 <script>
