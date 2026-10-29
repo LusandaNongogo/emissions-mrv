@@ -1,12 +1,21 @@
 {
   "name": "wits-ghg-mrv",
   "version": "1.0.0",
-  "description": "Blockchain-based GHG emissions Monitoring, Reporting and Verification (MRV) register",
+  "description": "On-chain GHG emissions Monitoring, Reporting and Verification (MRV) register on Ethereum Sepolia",
+  "author": "Lusanda Nongogo",
+  "keywords": [
+    "solidity",
+    "ethereum",
+    "sepolia",
+    "mrv",
+    "carbon",
+    "emissions",
+    "hardhat"
+  ],
   "license": "MIT",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test",
-    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia"
+    "test": "hardhat test"
   },
   "devDependencies": {
     "hardhat": "^2.22.0",
